@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 BASE_URL = "https://accrem.apps.cloud.comcast.net/api/v1"
 TOKEN_FILE = "/data/token.txt"
-REFRESH_INTERVAL = 45 * 60  # 45 min — under the 50-min server rotation
+REFRESH_INTERVAL = 45 * 60  # 45 min â€” under the 50-min server rotation
 
 lock = threading.Lock()
 token = None
@@ -74,7 +74,7 @@ def refresh_loop():
             print(f"Refresh error: {e}", flush=True)
 
 
-# ── UI (Jinja2 template — no .format() escaping needed) ──────────────────────
+# â”€â”€ UI (Jinja2 template â€” no .format() escaping needed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 PAGE = """<!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
@@ -92,7 +92,7 @@ PAGE = """<!DOCTYPE html>
       <p class="mt-1 text-sm text-gray-500">Self-hosted token bridge for Home Assistant</p>
     </div>
 
-    {# ── Status ── #}
+    {# â”€â”€ Status â”€â”€ #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4 flex items-center gap-3">
       <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 {{ 'bg-green-500' if ready else 'bg-red-400' }}"></span>
       <span class="text-sm font-medium {{ 'text-green-700' if ready else 'text-red-600' }}">
@@ -100,7 +100,7 @@ PAGE = """<!DOCTYPE html>
       </span>
     </div>
 
-    {# ── Flash message ── #}
+    {# â”€â”€ Flash message â”€â”€ #}
     {% if msg == 'saved' %}
     <div class="rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">
       &#10003; Token saved. Proxy is ready.
@@ -116,7 +116,7 @@ PAGE = """<!DOCTYPE html>
     {% endif %}
 
     {% if ready %}
-    {# ── Test ── #}
+    {# â”€â”€ Test â”€â”€ #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-1">Test connection</h2>
       <p class="text-xs text-gray-500 mb-3">Sends an OK keypress to the TV to verify the token is working.</p>
@@ -127,7 +127,7 @@ PAGE = """<!DOCTYPE html>
       <div id="test-result" class="hidden mt-3 rounded-md px-3 py-2 text-sm"></div>
     </div>
 
-    {# ── Clear ── #}
+    {# â”€â”€ Clear â”€â”€ #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-1">Remove token</h2>
       <p class="text-xs text-gray-500 mb-3">Clear the stored token to start over with a fresh one.</p>
@@ -140,7 +140,7 @@ PAGE = """<!DOCTYPE html>
     </div>
     {% endif %}
 
-    {# ── Token form ── #}
+    {# â”€â”€ Token form â”€â”€ #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-3">{% if ready %}Update token{% else %}Configure token{% endif %}</h2>
       <ol class="text-sm text-gray-600 space-y-1 mb-4 list-decimal list-inside leading-relaxed">
@@ -202,7 +202,7 @@ PAGE = """<!DOCTYPE html>
 </html>"""
 
 
-# ── Setup routes ──────────────────────────────────────────────────────────────
+# â”€â”€ Setup routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def render_page(msg=""):
     with lock:
@@ -259,7 +259,7 @@ def setup_clear():
     return redirect("/?msg=cleared")
 
 
-# ── Command endpoints ─────────────────────────────────────────────────────────
+# â”€â”€ Command endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/key/<vcode>", methods=["POST"])
 def key(vcode):
@@ -300,7 +300,7 @@ def health():
     return jsonify({"ready": ready})
 
 
-# ── Startup ───────────────────────────────────────────────────────────────────
+# â”€â”€ Startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 load_token()
 threading.Thread(target=refresh_loop, daemon=True).start()
@@ -308,205 +308,3 @@ threading.Thread(target=refresh_loop, daemon=True).start()
 # Entry point for direct execution (dev only); production uses gunicorn
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8765)
-
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Xfinity Proxy Setup</title>
-  <style>
-    body {{ font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
-    h1 {{ font-size: 1.4rem; margin-bottom: 4px; }}
-    .status {{ display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 24px; }}
-    .ready {{ background: #d4edda; color: #155724; }}
-    .not-ready {{ background: #f8d7da; color: #721c24; }}
-    ol {{ padding-left: 20px; line-height: 1.8; }}
-    code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
-    textarea {{ width: 100%; height: 120px; font-family: monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; margin-top: 12px; }}
-    button {{ margin-top: 10px; padding: 10px 24px; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }}
-    button:hover {{ background: #004494; }}
-    button.danger {{ background: #c0392b; margin-left: 10px; }}
-    button.danger:hover {{ background: #a93226; }}
-    button.test {{ background: #6c757d; }}
-    button.test:hover {{ background: #5a6268; }}
-    button.test:disabled {{ background: #aaa; cursor: wait; }}
-    .msg {{ margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }}
-    .msg.ok {{ background: #d4edda; color: #155724; }}
-    .msg.err {{ background: #f8d7da; color: #721c24; }}
-    #test-result {{ margin-top: 12px; padding: 10px 14px; border-radius: 4px; font-size: 0.9rem; display: none; }}
-  </style>
-</head>
-<body>
-  <h1>Xfinity Web Remote Proxy</h1>
-  <span class="status {cls}">{status_label}</span>
-  {msg_html}
-  <p>Paste a token obtained from the Xfinity web remote:</p>
-  <ol>
-    <li>Open <a href="https://accrem.apps.cloud.comcast.net" target="_blank">accrem.apps.cloud.comcast.net</a> in a browser</li>
-    <li>Open DevTools &rarr; Network tab</li>
-    <li>Click any remote button (e.g. channel up)</li>
-    <li>Find the request to <code>/api/v1/text</code></li>
-    <li>Copy the <code>arToken</code> value from the request body</li>
-    <li>Paste it below, then <strong>close the browser tab immediately</strong></li>
-  </ol>
-  <form method="POST" action="/setup/token">
-    <textarea name="token" placeholder="eyJhbGciOi..." required></textarea><br>
-    <button type="submit">Save Token</button>
-  </form>
-  {clear_html}
-</body>
-</html>"""
-
-READY_BLOCK = """
-  <div style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
-    <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Test the connection by pressing OK on the TV:</p>
-    <button class="test" onclick="testOk(this)">Test (sends OK)</button>
-    <div id="test-result"></div>
-  </div>
-  <form method="POST" action="/setup/clear" style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
-    <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Remove the stored token and start over:</p>
-    <button type="submit" class="danger">Clear Token</button>
-  </form>
-  <script>
-    function testOk(btn) {{
-      btn.disabled = true;
-      btn.textContent = 'Sending...';
-      var el = document.getElementById('test-result');
-      el.style.display = 'none';
-      fetch('/key/ENTER', {{method: 'POST'}})
-        .then(function(r) {{
-          return r.json().then(function(body) {{ return {{ok: r.ok, status: r.status, body: body}}; }});
-        }})
-        .then(function(res) {{
-          var upstream = res.body.upstream_status || res.status;
-          if (res.ok && upstream === 200) {{
-            el.className = 'msg ok';
-            el.textContent = '\u2713 OK \u2014 the TV should have responded.';
-          }} else {{
-            el.className = 'msg err';
-            el.textContent = '\u2717 Upstream returned ' + upstream + '. Token may be expired \u2014 try clearing and re-pasting it.';
-          }}
-          el.style.display = 'block';
-        }})
-        .catch(function(e) {{
-          el.className = 'msg err';
-          el.textContent = '\u2717 Request failed: ' + e;
-          el.style.display = 'block';
-        }})
-        .finally(function() {{
-          btn.disabled = false;
-          btn.textContent = 'Test (sends OK)';
-        }});
-    }}
-  </script>"""
-
-
-@app.route("/", methods=["GET"])
-def index():
-    with lock:
-        ready = token is not None
-    cls = "ready" if ready else "not-ready"
-    label = "Ready" if ready else "Not configured"
-    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="", clear_html=READY_BLOCK if ready else "")
-
-
-@app.route("/setup/token", methods=["GET"])
-def setup_token_get():
-    from flask import redirect
-    return redirect("/")
-
-
-@app.route("/setup/token", methods=["POST"])
-def setup_token():
-    global token
-    # Accept form submission (from UI) or raw JSON/text (from API clients)
-    new_token = ""
-    if request.content_type and "application/json" in request.content_type:
-        data = request.get_json(silent=True)
-        if data and "token" in data:
-            new_token = data["token"].strip()
-    elif request.form.get("token"):
-        new_token = request.form["token"].strip()
-    else:
-        new_token = (request.data or b"").decode().strip()
-
-    if not new_token:
-        if request.accept_mimetypes.best == "application/json":
-            return jsonify({"error": "Provide {\"token\": \"eyJ...\"} in the request body"}), 400
-        msg = '<div class="msg err">No token provided.</div>'
-        return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg, clear_html=""), 400
-
-    # Strip "Bearer " prefix if someone pastes the full Authorization header value
-    if new_token.lower().startswith("bearer "):
-        new_token = new_token[7:].strip()
-
-    with lock:
-        token = new_token
-    save_token(new_token)
-    print(f"Token set via /setup/token at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-
-    if request.accept_mimetypes.best == "application/json":
-        return jsonify({"status": "ok", "message": "Token saved. Proxy is ready."})
-    msg = '<div class="msg ok">Token saved. Proxy is ready. Use POST /tune/&lt;channel&gt; to send commands.</div>'
-    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg, clear_html=READY_BLOCK)
-
-
-@app.route("/setup/clear", methods=["POST"])
-def setup_clear():
-    clear_token()
-    if request.accept_mimetypes.best == "application/json":
-        return jsonify({"status": "ok", "message": "Token cleared."})
-    msg = '<div class="msg ok">Token cleared. Paste a new token below to re-configure.</div>'
-    return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg, clear_html="")
-
-
-# ── Command endpoints ─────────────────────────────────────────────────────────
-
-@app.route("/key/<vcode>", methods=["POST"])
-def key(vcode):
-    """Send a key press. E.g. POST /key/ENTER, /key/UP, /key/DOWN, /key/BACK"""
-    with lock:
-        t = token
-    if not t:
-        return jsonify({"error": "Not configured. POST a token to /setup/token first."}), 503
-    resp = requests.post(
-        f"{BASE_URL}/processKey",
-        headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"},
-        json={"vcode": vcode.upper()},
-        timeout=10
-    )
-    return jsonify({"upstream_status": resp.status_code}), 200
-
-
-@app.route("/tune/<channel>", methods=["POST"])
-def tune(channel):
-    """Tune to a channel number. E.g. POST /tune/3225"""
-    with lock:
-        t = token
-    if not t:
-        return jsonify({"error": "Not configured. POST a token to /setup/token first."}), 503
-    resp = requests.post(
-        f"{BASE_URL}/text",
-        headers={"Content-Type": "application/json"},
-        json={"cmd": channel, "arToken": t},
-        timeout=10
-    )
-    return jsonify({"upstream_status": resp.status_code}), 200
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    with lock:
-        ready = token is not None
-    return jsonify({"ready": ready})
-
-
-# ── Startup ──────────────────────────────────────────────────────────────────
-
-load_token()
-threading.Thread(target=refresh_loop, daemon=True).start()
-
-# Entry point for direct execution (dev only); production uses gunicorn
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8765)
-
