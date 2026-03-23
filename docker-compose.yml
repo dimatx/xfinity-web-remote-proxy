@@ -1,0 +1,15 @@
+services:
+  xfinity-proxy:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      # Optional: pre-seed a token to skip the /setup/token step.
+      # If omitted, POST a token to http://<host>:8765/setup/token after deploy.
+      - XFINITY_TOKEN=${XFINITY_TOKEN:-}
+    volumes:
+      - xfinity_data:/data
+
+volumes:
+  xfinity_data:
