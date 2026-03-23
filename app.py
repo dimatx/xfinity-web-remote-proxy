@@ -39,6 +39,15 @@ def save_token(t):
         f.write(t)
 
 
+def clear_token():
+    global token
+    with lock:
+        token = None
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+    print(f"Token cleared at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+
+
 def refresh_loop():
     global token
     while True:
@@ -84,6 +93,8 @@ SETUP_PAGE = """<!DOCTYPE html>
     textarea {{ width: 100%; height: 120px; font-family: monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; margin-top: 12px; }}
     button {{ margin-top: 10px; padding: 10px 24px; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }}
     button:hover {{ background: #004494; }}
+    button.danger {{ background: #c0392b; margin-left: 10px; }}
+    button.danger:hover {{ background: #a93226; }}
     .msg {{ margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }}
     .msg.ok {{ background: #d4edda; color: #155724; }}
     .msg.err {{ background: #f8d7da; color: #721c24; }}
@@ -106,8 +117,15 @@ SETUP_PAGE = """<!DOCTYPE html>
     <textarea name="token" placeholder="eyJhbGciOi..." required></textarea><br>
     <button type="submit">Save Token</button>
   </form>
+  {clear_html}
 </body>
 </html>"""
+
+CLEAR_BLOCK = """
+  <form method="POST" action="/setup/clear" style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
+    <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Remove the stored token and start over:</p>
+    <button type="submit" class="danger">Clear Token</button>
+  </form>"""
 
 
 @app.route("/", methods=["GET"])
@@ -116,7 +134,7 @@ def index():
         ready = token is not None
     cls = "ready" if ready else "not-ready"
     label = "Ready" if ready else "Not configured"
-    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="")
+    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="", clear_html=CLEAR_BLOCK if ready else "")
 
 
 @app.route("/setup/token", methods=["GET"])
@@ -156,7 +174,7 @@ def setup_token():
         if request.accept_mimetypes.best == "application/json":
             return jsonify({"error": "Provide {\"token\": \"eyJ...\"} in the request body"}), 400
         msg = '<div class="msg err">No token provided.</div>'
-        return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg), 400
+        return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg, clear_html=""), 400
 
     # Strip "Bearer " prefix if someone pastes the full Authorization header value
     if new_token.lower().startswith("bearer "):
@@ -170,7 +188,16 @@ def setup_token():
     if request.accept_mimetypes.best == "application/json":
         return jsonify({"status": "ok", "message": "Token saved. Proxy is ready."})
     msg = '<div class="msg ok">Token saved. Proxy is ready. Use POST /tune/&lt;channel&gt; to send commands.</div>'
-    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg)
+    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg, clear_html=CLEAR_BLOCK)
+
+
+@app.route("/setup/clear", methods=["POST"])
+def setup_clear():
+    clear_token()
+    if request.accept_mimetypes.best == "application/json":
+        return jsonify({"status": "ok", "message": "Token cleared."})
+    msg = '<div class="msg ok">Token cleared. Paste a new token below to re-configure.</div>'
+    return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg, clear_html="")
 
 
 # ── Command endpoints ─────────────────────────────────────────────────────────
