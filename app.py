@@ -95,9 +95,13 @@ SETUP_PAGE = """<!DOCTYPE html>
     button:hover {{ background: #004494; }}
     button.danger {{ background: #c0392b; margin-left: 10px; }}
     button.danger:hover {{ background: #a93226; }}
+    button.test {{ background: #6c757d; }}
+    button.test:hover {{ background: #5a6268; }}
+    button.test:disabled {{ background: #aaa; cursor: wait; }}
     .msg {{ margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }}
     .msg.ok {{ background: #d4edda; color: #155724; }}
     .msg.err {{ background: #f8d7da; color: #721c24; }}
+    #test-result {{ margin-top: 12px; padding: 10px 14px; border-radius: 4px; font-size: 0.9rem; display: none; }}
   </style>
 </head>
 <body>
@@ -122,10 +126,46 @@ SETUP_PAGE = """<!DOCTYPE html>
 </html>"""
 
 CLEAR_BLOCK = """
+  <div style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
+    <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Test the connection by pressing OK on the TV:</p>
+    <button class="test" onclick="testOk(this)">Test (sends OK)</button>
+    <div id="test-result"></div>
+  </div>
   <form method="POST" action="/setup/clear" style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
     <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Remove the stored token and start over:</p>
     <button type="submit" class="danger">Clear Token</button>
-  </form>"""
+  </form>
+  <script>
+    function testOk(btn) {{
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      var el = document.getElementById('test-result');
+      el.style.display = 'none';
+      fetch('/key/ENTER', {{method: 'POST'}})
+        .then(function(r) {{
+          return r.json().then(function(body) {{ return {{ok: r.ok, status: r.status, body: body}}; }});
+        }})
+        .then(function(res) {{
+          if (res.ok) {{
+            el.className = 'msg ok';
+            el.textContent = '\u2713 OK (' + res.status + ') \u2014 the TV should have responded.';
+          }} else {{
+            el.className = 'msg err';
+            el.textContent = '\u2717 ' + res.status + ': ' + JSON.stringify(res.body);
+          }}
+          el.style.display = 'block';
+        }})
+        .catch(function(e) {{
+          el.className = 'msg err';
+          el.textContent = '\u2717 Request failed: ' + e;
+          el.style.display = 'block';
+        }})
+        .finally(function() {{
+          btn.disabled = false;
+          btn.textContent = 'Test (sends OK)';
+        }});
+    }}
+  </script>"""
 
 
 @app.route("/", methods=["GET"])
