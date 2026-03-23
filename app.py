@@ -173,7 +173,23 @@ def setup_token():
     return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg)
 
 
-# ── Command endpoint ─────────────────────────────────────────────────────────
+# ── Command endpoints ─────────────────────────────────────────────────────────
+
+@app.route("/key/<vcode>", methods=["POST"])
+def key(vcode):
+    """Send a key press via /api/v1/processKey. E.g. POST /key/ENTER, /key/UP, /key/BACK"""
+    with lock:
+        t = token
+    if not t:
+        return jsonify({"error": "Not configured. POST a token to /setup/token first."}), 503
+    resp = requests.post(
+        f"{BASE_URL}/processKey",
+        headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"},
+        json={"vcode": vcode.upper()},
+        timeout=10
+    )
+    return jsonify({"status": resp.status_code}), resp.status_code
+
 
 @app.route("/tune/<channel>", methods=["POST"])
 def tune(channel):
