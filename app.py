@@ -65,7 +65,64 @@ def refresh_loop():
             print(f"Refresh error: {e}", flush=True)
 
 
-# ── Setup endpoint ───────────────────────────────────────────────────────────
+# ── Setup UI + endpoint ───────────────────────────────────────────────────────
+
+SETUP_PAGE = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xfinity Proxy Setup</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 24px; }
+    .ready { background: #d4edda; color: #155724; }
+    .not-ready { background: #f8d7da; color: #721c24; }
+    ol { padding-left: 20px; line-height: 1.8; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    textarea { width: 100%; height: 120px; font-family: monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; margin-top: 12px; }
+    button { margin-top: 10px; padding: 10px 24px; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #004494; }
+    .msg { margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }
+    .msg.ok { background: #d4edda; color: #155724; }
+    .msg.err { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>Xfinity Web Remote Proxy</h1>
+  <span class="status {cls}">{status_label}</span>
+  {msg_html}
+  <p>Paste a token obtained from the Xfinity web remote:</p>
+  <ol>
+    <li>Open <a href="https://accrem.apps.cloud.comcast.net" target="_blank">accrem.apps.cloud.comcast.net</a> in a browser</li>
+    <li>Open DevTools &rarr; Network tab</li>
+    <li>Click any remote button (e.g. channel up)</li>
+    <li>Find the request to <code>/api/v1/text</code></li>
+    <li>Copy the <code>arToken</code> value from the request body</li>
+    <li>Paste it below, then <strong>close the browser tab immediately</strong></li>
+  </ol>
+  <form method="POST" action="/setup/token">
+    <textarea name="token" placeholder="eyJhbGciOi..." required></textarea><br>
+    <button type="submit">Save Token</button>
+  </form>
+</body>
+</html>"""
+
+
+@app.route("/", methods=["GET"])
+def index():
+    with lock:
+        ready = token is not None
+    cls = "ready" if ready else "not-ready"
+    label = "Ready" if ready else "Not configured"
+    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="")
+
+
+@app.route("/setup/token", methods=["GET"])
+def setup_token_get():
+    return index()
+
 
 @app.route("/setup/token", methods=["POST"])
 def setup_token():
@@ -84,21 +141,36 @@ def setup_token():
          stops rotating the token
     """
     global token
-    data = request.get_json(silent=True)
-    if data and "token" in data:
-        new_token = data["token"].strip()
+    # Accept form submission (from UI) or raw JSON/text (from API clients)
+    new_token = ""
+    if request.content_type and "application/json" in request.content_type:
+        data = request.get_json(silent=True)
+        if data and "token" in data:
+            new_token = data["token"].strip()
+    elif request.form.get("token"):
+        new_token = request.form["token"].strip()
     else:
         new_token = (request.data or b"").decode().strip()
+
     if not new_token:
-        return jsonify({"error": "Provide {\"token\": \"eyJ...\"} in the request body"}), 400
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify({"error": "Provide {\"token\": \"eyJ...\"} in the request body"}), 400
+        msg = '<div class="msg err">No token provided.</div>'
+        return SETUP_PAGE.format(cls="not-ready", status_label="Not configured", msg_html=msg), 400
+
     # Strip "Bearer " prefix if someone pastes the full Authorization header value
     if new_token.lower().startswith("bearer "):
         new_token = new_token[7:].strip()
+
     with lock:
         token = new_token
     save_token(new_token)
     print(f"Token set via /setup/token at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-    return jsonify({"status": "ok", "message": "Token saved. Proxy is ready. Use POST /tune/<channel>"})
+
+    if request.accept_mimetypes.best == "application/json":
+        return jsonify({"status": "ok", "message": "Token saved. Proxy is ready."})
+    msg = '<div class="msg ok">Token saved. Proxy is ready. Use POST /tune/&lt;channel&gt; to send commands.</div>'
+    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg)
 
 
 # ── Command endpoint ─────────────────────────────────────────────────────────
