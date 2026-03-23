@@ -9,6 +9,8 @@ REFRESH_INTERVAL = 45 * 60  # 45 min â€” under the 50-min server rotation
 
 lock = threading.Lock()
 token = None
+_check_cache = {"valid": None, "ts": 0.0}  # caches last /check result for up to 1 min
+CHECK_CACHE_TTL = 60
 
 
 def load_token():
@@ -43,6 +45,7 @@ def clear_token():
     global token
     with lock:
         token = None
+    _check_cache.update({"valid": None, "ts": 0.0})
     if os.path.exists(TOKEN_FILE):
         os.remove(TOKEN_FILE)
     print(f"Token cleared at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
@@ -67,6 +70,7 @@ def refresh_loop():
                 with lock:
                     token = new_token
                 save_token(new_token)
+                _check_cache.update({"valid": True, "ts": time.time()})
                 print(f"Token refreshed at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
             else:
                 print(f"Refresh failed: {resp.status_code} {resp.text}", flush=True)
@@ -92,12 +96,15 @@ PAGE = """<!DOCTYPE html>
       <p class="mt-1 text-sm text-gray-500">Self-hosted token bridge for Home Assistant</p>
     </div>
 
-    {# â”€â”€ Status â”€â”€ #}
+    {# -- Status -- #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4 flex items-center gap-3">
-      <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 {{ 'bg-green-500' if ready else 'bg-red-400' }}"></span>
-      <span class="text-sm font-medium {{ 'text-green-700' if ready else 'text-red-600' }}">
-        {% if ready %}Token configured &mdash; proxy is ready{% else %}No token &mdash; setup required{% endif %}
-      </span>
+      {% if ready %}
+      <span id="status-dot" class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-gray-300 animate-pulse"></span>
+      <span id="status-text" class="text-sm font-medium text-gray-400">Checking token&hellip;</span>
+      {% else %}
+      <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-red-400"></span>
+      <span class="text-sm font-medium text-red-600">No token &mdash; setup required</span>
+      {% endif %}
     </div>
 
     {# â”€â”€ Flash message â”€â”€ #}
@@ -167,6 +174,35 @@ PAGE = """<!DOCTYPE html>
   </div>
 
   <script>
+    {% if ready %}
+    (function checkToken() {
+      fetch('/check')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var dot = document.getElementById('status-dot');
+          var txt = document.getElementById('status-text');
+          dot.classList.remove('animate-pulse', 'bg-gray-300');
+          if (data.valid) {
+            dot.classList.add('bg-green-500');
+            txt.className = 'text-sm font-medium text-green-700';
+            txt.textContent = 'Token valid \u2014 proxy is ready';
+          } else {
+            dot.classList.add('bg-orange-400');
+            txt.className = 'text-sm font-medium text-orange-700';
+            txt.textContent = 'Token expired \u2014 clear and re-paste a fresh one';
+          }
+        })
+        .catch(function() {
+          var dot = document.getElementById('status-dot');
+          var txt = document.getElementById('status-text');
+          dot.classList.remove('animate-pulse', 'bg-gray-300');
+          dot.classList.add('bg-yellow-400');
+          txt.className = 'text-sm font-medium text-yellow-700';
+          txt.textContent = 'Could not verify token (network error)';
+        });
+    })();
+    {% endif %}
+
     function testOk(btn) {
       btn.disabled = true;
       btn.textContent = 'Sending\u2026';
@@ -244,6 +280,7 @@ def setup_token():
     with lock:
         token = new_token
     save_token(new_token)
+    _check_cache.update({"valid": None, "ts": 0.0})
     print(f"Token set via /setup/token at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
 
     if request.accept_mimetypes.best == "application/json":
@@ -298,6 +335,38 @@ def health():
     with lock:
         ready = token is not None
     return jsonify({"ready": ready})
+
+
+@app.route("/check", methods=["GET"])
+def check():
+    """Probe the Comcast refresh endpoint to confirm the token is still valid."""
+    global token
+    with lock:
+        t = token
+    if not t:
+        return jsonify({"valid": False, "reason": "no_token"})
+    now = time.time()
+    if _check_cache["valid"] is not None and (now - _check_cache["ts"]) < CHECK_CACHE_TTL:
+        return jsonify({"valid": _check_cache["valid"], "cached": True})
+    try:
+        resp = requests.post(
+            f"{BASE_URL}/auth/token/refresh",
+            headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"},
+            timeout=10
+        )
+        if resp.ok:
+            new_token = resp.json().get("arToken", t)
+            with lock:
+                token = new_token
+            save_token(new_token)
+            _check_cache.update({"valid": True, "ts": now})
+            print(f"Token check: valid (refreshed) at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+            return jsonify({"valid": True})
+        else:
+            _check_cache.update({"valid": False, "ts": now})
+            return jsonify({"valid": False, "upstream_status": resp.status_code})
+    except Exception as e:
+        return jsonify({"valid": None, "reason": str(e)})
 
 
 # â”€â”€ Startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
