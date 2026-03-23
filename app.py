@@ -125,7 +125,7 @@ SETUP_PAGE = """<!DOCTYPE html>
 </body>
 </html>"""
 
-CLEAR_BLOCK = """
+READY_BLOCK = """
   <div style="margin-top:24px;border-top:1px solid #ddd;padding-top:20px;">
     <p style="margin:0 0 8px;color:#555;font-size:0.9rem;">Test the connection by pressing OK on the TV:</p>
     <button class="test" onclick="testOk(this)">Test (sends OK)</button>
@@ -146,12 +146,13 @@ CLEAR_BLOCK = """
           return r.json().then(function(body) {{ return {{ok: r.ok, status: r.status, body: body}}; }});
         }})
         .then(function(res) {{
-          if (res.ok) {{
+          var upstream = res.body.upstream_status || res.status;
+          if (res.ok && upstream === 200) {{
             el.className = 'msg ok';
-            el.textContent = '\u2713 OK (' + res.status + ') \u2014 the TV should have responded.';
+            el.textContent = '\u2713 OK \u2014 the TV should have responded.';
           }} else {{
             el.className = 'msg err';
-            el.textContent = '\u2717 ' + res.status + ': ' + JSON.stringify(res.body);
+            el.textContent = '\u2717 Upstream returned ' + upstream + '. Token may be expired \u2014 try clearing and re-pasting it.';
           }}
           el.style.display = 'block';
         }})
@@ -174,30 +175,17 @@ def index():
         ready = token is not None
     cls = "ready" if ready else "not-ready"
     label = "Ready" if ready else "Not configured"
-    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="", clear_html=CLEAR_BLOCK if ready else "")
+    return SETUP_PAGE.format(cls=cls, status_label=label, msg_html="", clear_html=READY_BLOCK if ready else "")
 
 
 @app.route("/setup/token", methods=["GET"])
 def setup_token_get():
-    return index()
+    from flask import redirect
+    return redirect("/")
 
 
 @app.route("/setup/token", methods=["POST"])
 def setup_token():
-    """
-    Seed the proxy with a token obtained from DevTools.
-
-    Accepts either JSON: {"token": "eyJ..."}
-    or plain text body: eyJ...
-
-    How to get the token:
-      1. Open https://accrem.apps.cloud.comcast.net in a browser
-      2. DevTools → Network → click any remote button → find a request to /api/v1/text
-      3. Copy the `arToken` value from the request body (or the Authorization header value
-         after stripping the "Bearer " prefix — both are the same token)
-      4. POST that value here, then close the browser tab immediately so it
-         stops rotating the token
-    """
     global token
     # Accept form submission (from UI) or raw JSON/text (from API clients)
     new_token = ""
@@ -228,7 +216,7 @@ def setup_token():
     if request.accept_mimetypes.best == "application/json":
         return jsonify({"status": "ok", "message": "Token saved. Proxy is ready."})
     msg = '<div class="msg ok">Token saved. Proxy is ready. Use POST /tune/&lt;channel&gt; to send commands.</div>'
-    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg, clear_html=CLEAR_BLOCK)
+    return SETUP_PAGE.format(cls="ready", status_label="Ready", msg_html=msg, clear_html=READY_BLOCK)
 
 
 @app.route("/setup/clear", methods=["POST"])
@@ -244,7 +232,7 @@ def setup_clear():
 
 @app.route("/key/<vcode>", methods=["POST"])
 def key(vcode):
-    """Send a key press via /api/v1/processKey. E.g. POST /key/ENTER, /key/UP, /key/BACK"""
+    """Send a key press. E.g. POST /key/ENTER, /key/UP, /key/DOWN, /key/BACK"""
     with lock:
         t = token
     if not t:
@@ -255,11 +243,12 @@ def key(vcode):
         json={"vcode": vcode.upper()},
         timeout=10
     )
-    return jsonify({"status": resp.status_code}), resp.status_code
+    return jsonify({"upstream_status": resp.status_code}), 200
 
 
 @app.route("/tune/<channel>", methods=["POST"])
 def tune(channel):
+    """Tune to a channel number. E.g. POST /tune/3225"""
     with lock:
         t = token
     if not t:
@@ -270,7 +259,7 @@ def tune(channel):
         json={"cmd": channel, "arToken": t},
         timeout=10
     )
-    return jsonify({"status": resp.status_code}), resp.status_code
+    return jsonify({"upstream_status": resp.status_code}), 200
 
 
 @app.route("/health", methods=["GET"])
