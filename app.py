@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 BASE_URL = "https://accrem.apps.cloud.comcast.net/api/v1"
 TOKEN_FILE = "/data/token.txt"
-REFRESH_INTERVAL = 45 * 60  # 45 min â€” under the 50-min server rotation
+REFRESH_INTERVAL = 45 * 60  # 45 min - under the 50-min server rotation
 
 lock = threading.Lock()
 token = None
@@ -78,7 +78,7 @@ def refresh_loop():
             print(f"Refresh error: {e}", flush=True)
 
 
-# â”€â”€ UI (Jinja2 template â€” no .format() escaping needed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- UI (Jinja2 template - no .format() escaping needed) ----------------------
 
 PAGE = """<!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
@@ -107,7 +107,7 @@ PAGE = """<!DOCTYPE html>
       {% endif %}
     </div>
 
-    {# â”€â”€ Flash message â”€â”€ #}
+    {# -- Flash message -- #}
     {% if msg == 'saved' %}
     <div class="rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">
       &#10003; Token saved. Proxy is ready.
@@ -123,7 +123,7 @@ PAGE = """<!DOCTYPE html>
     {% endif %}
 
     {% if ready %}
-    {# â”€â”€ Test â”€â”€ #}
+    {# -- Test -- #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-1">Test connection</h2>
       <p class="text-xs text-gray-500 mb-3">Sends an OK keypress to the TV to verify the token is working.</p>
@@ -134,7 +134,7 @@ PAGE = """<!DOCTYPE html>
       <div id="test-result" class="hidden mt-3 rounded-md px-3 py-2 text-sm"></div>
     </div>
 
-    {# â”€â”€ Clear â”€â”€ #}
+    {# -- Clear -- #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-1">Remove token</h2>
       <p class="text-xs text-gray-500 mb-3">Clear the stored token to start over with a fresh one.</p>
@@ -147,7 +147,7 @@ PAGE = """<!DOCTYPE html>
     </div>
     {% endif %}
 
-    {# â”€â”€ Token form â”€â”€ #}
+    {# -- Token form -- #}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
       <h2 class="text-sm font-semibold text-gray-900 mb-3">{% if ready %}Update token{% else %}Configure token{% endif %}</h2>
       <ol class="text-sm text-gray-600 space-y-1 mb-4 list-decimal list-inside leading-relaxed">
@@ -238,7 +238,7 @@ PAGE = """<!DOCTYPE html>
 </html>"""
 
 
-# â”€â”€ Setup routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Setup routes --------------------------------------------------------------
 
 def render_page(msg=""):
     with lock:
@@ -296,7 +296,7 @@ def setup_clear():
     return redirect("/?msg=cleared")
 
 
-# â”€â”€ Command endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Command endpoints ---------------------------------------------------------
 
 @app.route("/key/<vcode>", methods=["POST"])
 def key(vcode):
@@ -369,7 +369,7 @@ def check():
         return jsonify({"valid": None, "reason": str(e)})
 
 
-# â”€â”€ Startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Startup -------------------------------------------------------------------
 
 load_token()
 threading.Thread(target=refresh_loop, daemon=True).start()

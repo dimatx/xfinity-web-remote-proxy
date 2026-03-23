@@ -32,9 +32,14 @@ Or deploy via Komodo (or any other Docker Compose host) pointing at this repo �
 
 Open `http://<your-host>:8765` in a browser and paste the token into the setup form.
 
-Once saved, use the **Test (sends OK)** button to verify the connection is working.
+Once saved, the page automatically checks the token against Comcast's API and shows one of:
+- **Green** — token is valid and the proxy is ready
+- **Orange** — token is expired; clear it and paste a fresh one
+- **Yellow** — couldn't reach Comcast's API (network issue)
 
-> **Token persistence:** The token is saved to a Docker volume (`xfinity_data`). Container restarts will reload it automatically — you only need to re-paste if you clear it or the token hard-expires (~1 year).
+Use the **Send OK** button to also test that the TV actually responds.
+
+> **Token persistence:** The token is saved to a Docker volume (`xfinity_data`). Container restarts will reload it automatically. The proxy refreshes the token every 45 minutes in the background — you should never need to re-paste it unless you clear it manually.
 
 ## Endpoints
 
@@ -45,7 +50,8 @@ Once saved, use the **Test (sends OK)** button to verify the connection is worki
 | `POST` | `/setup/clear` | Clear the stored token |
 | `POST` | `/tune/<channel>` | Tune to a channel number (e.g. `/tune/3225`) |
 | `POST` | `/key/<vcode>` | Press a key (e.g. `/key/ENTER`, `/key/UP`, `/key/DOWN`, `/key/BACK`) |
-| `GET` | `/health` | Returns `{"ready": true/false}` |
+| `GET` | `/health` | Returns `{"ready": true/false}` — token exists in memory |
+| `GET` | `/check` | Probes Comcast API to verify token is still valid; refreshes it if so. Result cached 60 s. |
 
 ## Home Assistant integration
 
@@ -93,7 +99,11 @@ Restart Home Assistant after editing `configuration.yaml`.
 
 ## Troubleshooting
 
-**Test button shows "Upstream returned 401"** — The token has expired or been rotated by another browser session. Clear the token and paste a fresh one.
+**Status dot is orange ("Token expired")** — The token was invalidated (e.g. another browser session was left open). Click **Clear Token** and paste a fresh one.
+
+**Status dot is yellow ("Could not verify")** — The container can't reach Comcast's servers. Check outbound internet access from the container.
+
+**Send OK button shows "Upstream returned 401"** — Same as above; token is expired.
 
 **`/health` returns `{"ready": false}`** — No token has been set yet. Open the setup UI and paste one.
 
