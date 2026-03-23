@@ -1,16 +1,18 @@
 from flask import Flask, jsonify, request, render_template_string, redirect
-import requests, threading, time, os
+import requests, threading, time, os, re
 
 app = Flask(__name__)
 
 BASE_URL = "https://accrem.apps.cloud.comcast.net/api/v1"
 TOKEN_FILE = "/data/token.txt"
-REFRESH_INTERVAL = 45 * 60  # 45 min - under the 50-min server rotation
+REFRESH_INTERVAL = 45 * 60  # 45 min. Under the 50-min server rotation
 
 lock = threading.Lock()
 token = None
 _check_cache = {"valid": None, "ts": 0.0}  # caches last /check result for up to 1 min
 CHECK_CACHE_TTL = 60
+_JWT_RE = re.compile(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')
+VERSION = "2026-03-23"
 
 
 def load_token():
@@ -78,8 +80,6 @@ def refresh_loop():
             print(f"Refresh error: {e}", flush=True)
 
 
-# -- UI (Jinja2 template - no .format() escaping needed) ----------------------
-
 PAGE = """<!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
 <head>
@@ -120,6 +120,10 @@ PAGE = """<!DOCTYPE html>
     <div class="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
       No token provided &mdash; please paste one below.
     </div>
+    {% elif msg == 'invalid' %}
+    <div class="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+      Invalid token &mdash; must be a JWT. Copy the <code class="bg-red-100 px-1 rounded text-xs">arToken</code> value from the Network tab request body.
+    </div>
     {% endif %}
 
     {% if ready %}
@@ -148,8 +152,35 @@ PAGE = """<!DOCTYPE html>
     {% endif %}
 
     {# -- Token form -- #}
+    {% if ready %}
+    <details class="rounded-lg border bg-white shadow-sm group">
+      <summary class="px-5 py-4 cursor-pointer list-none flex items-center justify-between hover:bg-gray-50 rounded-lg transition-colors">
+        <span class="text-sm font-semibold text-gray-900">Update token</span>
+        <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </summary>
+      <div class="px-5 pb-4 pt-3 border-t border-gray-100">
+        <ol class="text-sm text-gray-600 space-y-1 mb-4 list-decimal list-inside leading-relaxed">
+          <li>Open <a href="https://accrem.apps.cloud.comcast.net" target="_blank" class="text-blue-600 hover:underline">accrem.apps.cloud.comcast.net</a> in a browser</li>
+          <li>Open DevTools &rarr; Network tab</li>
+          <li>Click any button on the remote</li>
+          <li>Find the request to <code class="bg-gray-100 px-1 rounded text-xs">/api/v1/text</code></li>
+          <li>Copy the <code class="bg-gray-100 px-1 rounded text-xs">arToken</code> value from the request body</li>
+          <li><strong>Close the browser tab immediately</strong> after copying</li>
+        </ol>
+        <form method="POST" action="/setup/token" onsubmit="return validateToken(this)">
+          <textarea name="token" placeholder="eyJhbGciOi..." required
+            class="w-full h-24 rounded-md border border-gray-300 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"></textarea>
+          <div id="token-error" class="hidden mt-2 text-xs text-red-600"></div>
+          <button type="submit"
+            class="mt-2 inline-flex items-center px-3 py-1.5 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
+            Save Token
+          </button>
+        </form>
+      </div>
+    </details>
+    {% else %}
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4">
-      <h2 class="text-sm font-semibold text-gray-900 mb-3">{% if ready %}Update token{% else %}Configure token{% endif %}</h2>
+      <h2 class="text-sm font-semibold text-gray-900 mb-3">Configure token</h2>
       <ol class="text-sm text-gray-600 space-y-1 mb-4 list-decimal list-inside leading-relaxed">
         <li>Open <a href="https://accrem.apps.cloud.comcast.net" target="_blank" class="text-blue-600 hover:underline">accrem.apps.cloud.comcast.net</a> in a browser</li>
         <li>Open DevTools &rarr; Network tab</li>
@@ -158,18 +189,22 @@ PAGE = """<!DOCTYPE html>
         <li>Copy the <code class="bg-gray-100 px-1 rounded text-xs">arToken</code> value from the request body</li>
         <li><strong>Close the browser tab immediately</strong> after copying</li>
       </ol>
-      <form method="POST" action="/setup/token">
+      <form method="POST" action="/setup/token" onsubmit="return validateToken(this)">
         <textarea name="token" placeholder="eyJhbGciOi..." required
           class="w-full h-24 rounded-md border border-gray-300 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"></textarea>
+        <div id="token-error" class="hidden mt-2 text-xs text-red-600"></div>
         <button type="submit"
           class="mt-2 inline-flex items-center px-3 py-1.5 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
           Save Token
         </button>
       </form>
     </div>
+    {% endif %}
 
     <p class="text-center text-xs text-gray-400">
       <a href="https://github.com/dimatx/xfinity-web-remote-proxy" target="_blank" class="hover:underline">dimatx/xfinity-web-remote-proxy</a>
+      <span class="mx-1">&middot;</span>
+      <span>{{ version }}</span>
     </p>
   </div>
 
@@ -202,6 +237,20 @@ PAGE = """<!DOCTYPE html>
         });
     })();
     {% endif %}
+
+    function validateToken(form) {
+      var el = document.getElementById('token-error');
+      var val = form.querySelector('textarea[name="token"]').value.trim();
+      if (val.toLowerCase().startsWith('bearer ')) { val = val.slice(7).trim(); }
+      var parts = val.split('.');
+      if (parts.length !== 3 || !parts.every(function(p) { return /^[A-Za-z0-9_-]+$/.test(p); })) {
+        el.textContent = 'Not a valid JWT \u2014 copy the arToken value from the Network tab request body.';
+        el.classList.remove('hidden');
+        return false;
+      }
+      el.classList.add('hidden');
+      return true;
+    }
 
     function testOk(btn) {
       btn.disabled = true;
@@ -238,12 +287,10 @@ PAGE = """<!DOCTYPE html>
 </html>"""
 
 
-# -- Setup routes --------------------------------------------------------------
-
 def render_page(msg=""):
     with lock:
         ready = token is not None
-    return render_template_string(PAGE, ready=ready, msg=msg)
+    return render_template_string(PAGE, ready=ready, msg=msg, version=VERSION)
 
 
 @app.route("/", methods=["GET"])
@@ -277,6 +324,11 @@ def setup_token():
     if new_token.lower().startswith("bearer "):
         new_token = new_token[7:].strip()
 
+    if not _JWT_RE.match(new_token):
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify({"error": "Token must be a valid JWT (three base64url parts separated by dots)"}), 400
+        return redirect("/?msg=invalid")
+
     with lock:
         token = new_token
     save_token(new_token)
@@ -295,8 +347,6 @@ def setup_clear():
         return jsonify({"status": "ok", "message": "Token cleared."})
     return redirect("/?msg=cleared")
 
-
-# -- Command endpoints ---------------------------------------------------------
 
 @app.route("/key/<vcode>", methods=["POST"])
 def key(vcode):
@@ -368,8 +418,6 @@ def check():
     except Exception as e:
         return jsonify({"valid": None, "reason": str(e)})
 
-
-# -- Startup -------------------------------------------------------------------
 
 load_token()
 threading.Thread(target=refresh_loop, daemon=True).start()
