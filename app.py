@@ -284,5 +284,8 @@ def health():
 
 load_token()
 threading.Thread(target=refresh_loop, daemon=True).start()
-app.run(host="0.0.0.0", port=8765)
+
+# Entry point for direct execution (dev only); production uses gunicorn
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8765)
 

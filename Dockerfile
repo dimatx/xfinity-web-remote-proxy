@@ -1,4 +1,4 @@
 FROM python:3.12-alpine
-RUN pip install --no-cache-dir flask requests
+RUN pip install --no-cache-dir flask requests gunicorn
 COPY app.py /app.py
-CMD ["python", "/app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8765", "--workers", "1", "--threads", "4", "app:app"]
