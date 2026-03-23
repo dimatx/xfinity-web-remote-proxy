@@ -74,19 +74,19 @@ SETUP_PAGE = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Xfinity Proxy Setup</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }
-    h1 { font-size: 1.4rem; margin-bottom: 4px; }
-    .status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 24px; }
-    .ready { background: #d4edda; color: #155724; }
-    .not-ready { background: #f8d7da; color: #721c24; }
-    ol { padding-left: 20px; line-height: 1.8; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-    textarea { width: 100%; height: 120px; font-family: monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; margin-top: 12px; }
-    button { margin-top: 10px; padding: 10px 24px; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-    button:hover { background: #004494; }
-    .msg { margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }
-    .msg.ok { background: #d4edda; color: #155724; }
-    .msg.err { background: #f8d7da; color: #721c24; }
+    body {{ font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
+    h1 {{ font-size: 1.4rem; margin-bottom: 4px; }}
+    .status {{ display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 24px; }}
+    .ready {{ background: #d4edda; color: #155724; }}
+    .not-ready {{ background: #f8d7da; color: #721c24; }}
+    ol {{ padding-left: 20px; line-height: 1.8; }}
+    code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
+    textarea {{ width: 100%; height: 120px; font-family: monospace; font-size: 0.85rem; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; margin-top: 12px; }}
+    button {{ margin-top: 10px; padding: 10px 24px; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }}
+    button:hover {{ background: #004494; }}
+    .msg {{ margin-top: 16px; padding: 10px 14px; border-radius: 4px; font-size: 0.95rem; }}
+    .msg.ok {{ background: #d4edda; color: #155724; }}
+    .msg.err {{ background: #f8d7da; color: #721c24; }}
   </style>
 </head>
 <body>
