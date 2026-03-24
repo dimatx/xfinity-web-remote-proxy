@@ -406,7 +406,7 @@ def health():
 @app.route("/check", methods=["GET"])
 def check():
     """Probe the Comcast refresh endpoint to confirm the token is still valid."""
-    global token
+    global token, _last_refreshed
     with lock:
         t = token
     if not t:
@@ -429,7 +429,7 @@ def check():
             _last_refreshed = now
             _check_cache.update({"valid": True, "ts": now})
             print(f"Token check: valid (refreshed) at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-            return jsonify({"valid": True, "next_refresh_at": now + REFRESH_INTERVAL})
+            return jsonify({"valid": True, "next_refresh_at": _last_refreshed + REFRESH_INTERVAL})
         else:
             _check_cache.update({"valid": False, "ts": now})
             return jsonify({"valid": False, "upstream_status": resp.status_code})
