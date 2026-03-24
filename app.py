@@ -9,7 +9,6 @@ REFRESH_INTERVAL = 45 * 60  # 45 min. Under the 50-min server rotation
 
 lock = threading.Lock()
 token = None
-_last_refreshed = 0.0  # unix timestamp of last successful token set/refresh
 _check_cache = {"valid": None, "ts": 0.0}  # caches last /check result for up to 1 min
 CHECK_CACHE_TTL = 60
 _JWT_RE = re.compile(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')
@@ -18,14 +17,13 @@ VERSION = "2026-03-23"
 
 def load_token():
     """Load persisted token from disk on startup, then fall back to env var."""
-    global token, _last_refreshed
+    global token
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE) as f:
             t = f.read().strip()
         if t:
             with lock:
                 token = t
-            _last_refreshed = time.time()
             print(f"Loaded token from {TOKEN_FILE}", flush=True)
             return True
     env_token = os.environ.get("XFINITY_TOKEN", "").strip()
@@ -33,7 +31,6 @@ def load_token():
         with lock:
             token = env_token
         save_token(env_token)
-        _last_refreshed = time.time()
         print("Loaded token from XFINITY_TOKEN env var", flush=True)
         return True
     print("No token found. POST a token to /setup/token to get started.", flush=True)
@@ -47,10 +44,9 @@ def save_token(t):
 
 
 def clear_token():
-    global token, _last_refreshed
+    global token
     with lock:
         token = None
-    _last_refreshed = 0.0
     _check_cache.update({"valid": None, "ts": 0.0})
     if os.path.exists(TOKEN_FILE):
         os.remove(TOKEN_FILE)
@@ -76,8 +72,7 @@ def refresh_loop():
                 with lock:
                     token = new_token
                 save_token(new_token)
-                _last_refreshed = time.time()
-                _check_cache.update({"valid": True, "ts": _last_refreshed})
+                _check_cache.update({"valid": True, "ts": time.time()})
                 print(f"Token refreshed at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
             else:
                 print(f"Refresh failed: {resp.status_code} {resp.text}", flush=True)
@@ -106,10 +101,7 @@ PAGE = """<!DOCTYPE html>
     <div class="rounded-lg border bg-white shadow-sm px-5 py-4 flex items-center gap-3">
       {% if ready %}
       <span id="status-dot" class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-gray-300 animate-pulse"></span>
-      <div>
-        <span id="status-text" class="text-sm font-medium text-gray-400">Checking token&hellip;</span>
-        <div id="status-sub" class="hidden text-xs text-gray-400 mt-0.5"></div>
-      </div>
+      <span id="status-text" class="text-sm font-medium text-gray-400">Checking token&hellip;</span>
       {% else %}
       <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-red-400"></span>
       <span class="text-sm font-medium text-red-600">No token &mdash; setup required</span>
@@ -230,12 +222,6 @@ PAGE = """<!DOCTYPE html>
             dot.classList.add('bg-green-500');
             txt.className = 'text-sm font-medium text-green-700';
             txt.textContent = 'Token valid \u2014 proxy is ready';
-            if (data.next_refresh_at) {
-              var mins = Math.round((data.next_refresh_at - Date.now() / 1000) / 60);
-              var sub = document.getElementById('status-sub');
-              sub.textContent = 'Next refresh in ' + (mins > 0 ? mins + '\u202fmin' : 'less than a minute');
-              sub.classList.remove('hidden');
-            }
           } else {
             dot.classList.add('bg-orange-400');
             txt.className = 'text-sm font-medium text-orange-700';
@@ -347,7 +333,6 @@ def setup_token():
     with lock:
         token = new_token
     save_token(new_token)
-    _last_refreshed = time.time()
     _check_cache.update({"valid": None, "ts": 0.0})
     print(f"Token set via /setup/token at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
 
@@ -406,15 +391,14 @@ def health():
 @app.route("/check", methods=["GET"])
 def check():
     """Probe the Comcast refresh endpoint to confirm the token is still valid."""
-    global token, _last_refreshed
+    global token
     with lock:
         t = token
     if not t:
         return jsonify({"valid": False, "reason": "no_token"})
     now = time.time()
     if _check_cache["valid"] is not None and (now - _check_cache["ts"]) < CHECK_CACHE_TTL:
-        return jsonify({"valid": _check_cache["valid"], "cached": True,
-                        "next_refresh_at": _last_refreshed + REFRESH_INTERVAL})
+        return jsonify({"valid": _check_cache["valid"], "cached": True})
     try:
         resp = requests.post(
             f"{BASE_URL}/auth/token/refresh",
@@ -426,10 +410,9 @@ def check():
             with lock:
                 token = new_token
             save_token(new_token)
-            _last_refreshed = now
             _check_cache.update({"valid": True, "ts": now})
             print(f"Token check: valid (refreshed) at {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-            return jsonify({"valid": True, "next_refresh_at": _last_refreshed + REFRESH_INTERVAL})
+            return jsonify({"valid": True})
         else:
             _check_cache.update({"valid": False, "ts": now})
             return jsonify({"valid": False, "upstream_status": resp.status_code})
