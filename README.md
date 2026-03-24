@@ -1,8 +1,8 @@
-# Xfinity Web Remote Proxy
+# 📺 Xfinity Web Remote Proxy
 
 A small self-hosted proxy that lets you control an Xfinity X1 cable box from Home Assistant (or any HTTP client) by forwarding commands to the [Xfinity Adaptive Remote](https://accrem.apps.cloud.comcast.net) web API.
 
-## How it works
+## ⚙️ How it works
 
 The Xfinity web remote uses a short-lived JWT (`arToken`) that rotates every ~50 minutes. This proxy:
 
@@ -10,7 +10,7 @@ The Xfinity web remote uses a short-lived JWT (`arToken`) that rotates every ~50
 2. Proactively refreshes it every 45 minutes so it never goes stale
 3. Exposes simple HTTP endpoints that Home Assistant can call
 
-## Setup
+## 🚀 Setup
 
 ### 1. Deploy
 
@@ -33,15 +33,15 @@ Or deploy via Komodo (or any other Docker Compose host) pointing at this repo �
 Open `http://<your-host>:8765` in a browser and paste the token into the setup form.
 
 Once saved, the page automatically checks the token against Comcast's API and shows one of:
-- **Green** — token is valid and the proxy is ready
-- **Orange** — token is expired; clear it and paste a fresh one
-- **Yellow** — couldn't reach Comcast's API (network issue)
+- 🟢 **Green** — token is valid and the proxy is ready
+- 🟠 **Orange** — token is expired; clear it and paste a fresh one
+- 🟡 **Yellow** — couldn't reach Comcast's API (network issue)
 
 Use the **Send OK** button to also test that the TV actually responds.
 
 > **Token persistence:** The token is saved to a Docker volume (`xfinity_data`). Container restarts will reload it automatically. The proxy refreshes the token every 45 minutes in the background — you should never need to re-paste it unless you clear it manually.
 
-## Endpoints
+## 🔌 Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -53,7 +53,7 @@ Use the **Send OK** button to also test that the TV actually responds.
 | `GET` | `/health` | Returns `{"ready": true/false}` — token exists in memory |
 | `GET` | `/check` | Probes Comcast API to verify token is still valid; refreshes it if so. Result cached 60 s. |
 
-## Home Assistant integration
+## 🏠 Home Assistant integration
 
 Add to `configuration.yaml`:
 
@@ -91,17 +91,17 @@ template:
 
 Restart Home Assistant after editing `configuration.yaml`.
 
-## Environment variables
+## 🔧 Environment variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `XFINITY_TOKEN` | No | Optional token to pre-seed on first deploy (skips the UI setup step). Leave blank to use the web UI instead. |
 
-## Troubleshooting
+## 🩺 Troubleshooting
 
-**Status dot is orange ("Token expired")** — The token was invalidated (e.g. another browser session was left open). Click **Clear Token** and paste a fresh one.
+**🟠 Status dot is orange ("Token expired")** — The token was invalidated (e.g. another browser session was left open). Click **Clear Token** and paste a fresh one.
 
-**Status dot is yellow ("Could not verify")** — The container can't reach Comcast's servers. Check outbound internet access from the container.
+**🟡 Status dot is yellow ("Could not verify")** — The container can't reach Comcast's servers. Check outbound internet access from the container.
 
 **Send OK button shows "Upstream returned 401"** — Same as above; token is expired.
 
